@@ -1,4 +1,6 @@
 #include <iostream>
+#include <functional>
+
 class Point2D
 {
 private:
@@ -8,9 +10,13 @@ public:
     Point2D()
     {
     }
+    Point2D(const double &x, std::function<double(double)> function) : x(x), y(function(x))
+    {
+    }
     Point2D(const double &x, const double &y) : x(x), y(y)
     {
     }
+
     double getX() const
     {
         return this->x;
@@ -26,6 +32,11 @@ public:
     void setY(const double &y)
     {
         this->y = y;
+    }
+    void setPoint(const double &x, std::function<double(double)> function)
+    {
+        this->x = x;
+        this->y = function(x);
     }
     friend std::ostream &operator<<(std::ostream &stream, const Point2D &point)
     {
