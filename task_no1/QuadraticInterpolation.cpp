@@ -1,11 +1,17 @@
-#include "QuadraticInterpolation.h"
 #include <algorithm>
 #include <vector>
-#include "Point2D.h"
+#include <fstream>
+#include <exception>
+#include <functional>
+#include <iostream>
+#include "QuadraticInterpolation.h"
 
-Point2D Solver::solve(const double &a, const double &b, const double &EPS = 1e-6, bool callback=true)
+Point2D Solver::solve(const double &a, const double &b, const double &EPS = 1e-6, bool callback = true)
 {
-
+    if (a > b)
+    {
+        throw std::invalid_argument("a is bigger than b");
+    }
     auto f = this->function;
     double h = (b - a) * 0.2;
     Point2D x1(a, f), x2(a + h, f), x3;
@@ -13,6 +19,7 @@ Point2D Solver::solve(const double &a, const double &b, const double &EPS = 1e-6
         x3.setPoint(a - h, f);
     else
         x3.setPoint(a + 2 * h, f);
+
     auto calculateDelta = [&f](
                               const Point2D &x1, const Point2D &x2, const Point2D &x3) -> Point2D
     {
@@ -42,16 +49,38 @@ Point2D Solver::solve(const double &a, const double &b, const double &EPS = 1e-6
     sort(list.begin(), list.end(), [](const Point2D &a, const Point2D &b)
          { return a.getY() < b.getY(); });
 
-    while (abs(list[0].getY() - list[1].getY()) >= EPS)
+    if (callback)
     {
-        if (!((list[1].getY() > list[0].getY()) ^ (list[2].getY() > list[0].getY())) &&
-            ((list[1].getY() > list[0].getY()) ^ (list[3].getY() > list[0].getY())))
+        this->stream << "current values:\n";
+        this->stream << "x\tf(x)\n";
+        for (auto &x : list)
+        {
+            this->stream << x.getX() << " " << x.getY() << "\n";
+        }
+        this->stream << "\n";
+    }
+
+    while (std::abs(list[0].getX() - list[1].getX()) >= EPS)
+    {
+
+        if (!((list[1].getX() > list[0].getX()) ^ (list[2].getX() > list[0].getX())) &&
+            ((list[1].getX() > list[0].getX()) ^ (list[3].getX() > list[0].getX())))
         {
             std::swap(list[2], list[3]);
         }
         list[3] = calculateDelta2(list[0], list[1], list[2]);
         sort(list.begin(), list.end(), [](const Point2D &a, const Point2D &b)
              { return a.getY() < b.getY(); });
+        if (callback)
+        {
+            for (auto &x : list)
+            {
+                this->stream << x.getX() << " " << x.getY() << "\n";
+            }
+            this->stream << "\n";
+        }
     }
+    this->stream << list[0].getX() << " " << list[0].getY() << "\n";
+
     return list[0];
 }

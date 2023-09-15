@@ -8,9 +8,8 @@ private:
 
 public:
     Point2D()
-    {
-    }
-    Point2D(const double &x, std::function<double(double)> function) : x(x), y(function(x))
+    = default;
+    Point2D(const double &x, const std::function<double(double)>& function) : x(x), y(function(x))
     {
     }
     Point2D(const double &x, const double &y) : x(x), y(y)
@@ -33,7 +32,7 @@ public:
     {
         this->y = y;
     }
-    void setPoint(const double &x, std::function<double(double)> function)
+    void setPoint(const double &x, std::function<double(double)>& function)
     {
         this->x = x;
         this->y = function(x);
