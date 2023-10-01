@@ -1,2 +1,4 @@
 .vscode
 /cmake-build-debug/
+.idea
+lection1/pom.xml

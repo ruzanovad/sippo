@@ -6,15 +6,14 @@
 #include <iostream>
 #include "QuadraticInterpolation.h"
 
-Point2D Solver::solve(const double &a, const double &b, const double &EPS = 1e-6, bool callback = true)
+Point2D Solver::solve(const double &a, const double &h, const double &EPS = 1e-6, bool callback = true)
 {
-    if (a > b)
-    {
-        throw std::invalid_argument("a is bigger than b");
-    }
+//    if (a > b)
+//    {
+//        throw std::invalid_argument("a is bigger than b");
+//    }
     auto f = this->function;
-    double h = (b - a) * 0.2;
-    Point2D x1(a, f), x2(a + h, f), x3;
+    Point2D x1(a, f(a)), x2(a + h, f), x3;
     if (x1.getY() < x2.getY())
         x3.setPoint(a - h, f);
     else
@@ -80,7 +79,8 @@ Point2D Solver::solve(const double &a, const double &b, const double &EPS = 1e-6
             this->stream << "\n";
         }
     }
-    this->stream << list[0].getX() << " " << list[0].getY() << "\n";
+    if (callback)
+        this->stream << list[0].getX() << " " << list[0].getY() << "\n";
 
     return list[0];
 }

@@ -15,7 +15,6 @@ public:
     Point2D(const double &x, const double &y) : x(x), y(y)
     {
     }
-
     double getX() const
     {
         return this->x;
