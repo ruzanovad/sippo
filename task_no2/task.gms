@@ -1,14 +1,18 @@
 Sets
-    i /C1*C4/;
+    i /C1*C7/;
 alias(i, j);
+*alias(i, intermediate);
 Parameters
     a(i, j)
     d(i, j);
 Scalar z;
 
 a(i, j) = round(uniform(1, 150));
-d(i, j) = round(uniform(2, 60));
-z = round(uniform(1, 100));
+d(i, j) = round(uniform(1, 50));
+z = round(uniform(50, 60));
+
+loop(i, d(i, i) = 0;);
+loop(i, a(i, i) = 0;);
 
 file probl /Problem.txt/;
 put probl;
@@ -37,18 +41,22 @@ Variables
 Positive Variable x;
 Equations
     cost
-    supply
+    source
     legit(i, j)
     balance(i)
-    noloop(i);
+    sink;
+*    noloop(i);
 cost ..     f =e= sum((i, j), a(i, j)*x(i, j));
-supply ..   z =e= sum(j, x('C1', j));
-*demand ..   z =e= sum(i, x(i, 'C10'));
+* целевая функция, умножаем поток на дугах на коэффициент стоимостей
+source ..   z =e= sum((i, j)$i.first, x(i, j));
+* из источника вышло z
+sink ..   z =e= sum((i, j)$j.last, x(i, j));
+* в сток зашло z
 legit(i, j) ..    x(i, j) =l= d(i, j);
-balance(i) ..  sum(j, x(j, i)) =e= sum(j, x(i, j));
-noloop(i) ..   x(i, i) =e= 0
-
-
+* допустимость, неотрицательность дуги уже проверена, так как разрешены только неотрицательные переменные
+balance(i)$(not i.last and not i.first) ..  sum(j, x(j, i)) =e= sum(j, x(i, j) );
+* баланс для остальных дуг 
+*noloop(i) ..   x(i, i) =e= 0;
 
 Model stream /all/;
 Solve stream using LP minimizing f;

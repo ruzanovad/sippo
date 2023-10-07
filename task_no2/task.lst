@@ -1,0 +1,368 @@
+GAMS 44.4.0  06604687 Sep 19, 2023          WEX-WEI x86 64bit/MS Windows - 10/07/23 10:22:53 Page 1
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+C o m p i l a t i o n
+
+
+   1  Sets
+   2      i /C1*C7/;
+   3  alias(i, j);
+   4  *alias(i, intermediate);
+   5  Parameters
+   6      a(i, j)
+   7      d(i, j);
+   8  Scalar z;
+   9   
+  10  a(i, j) = round(uniform(1, 150));
+  11  d(i, j) = round(uniform(1, 50));
+  12  z = round(uniform(50, 60));
+  13   
+  14  loop(i, d(i, i) = 0;);
+  15  loop(i, a(i, i) = 0;);
+  16   
+  17  file probl /Problem.txt/;
+  18  put probl;
+  19  put /"Матрица стоимостей"/;
+  20  loop(i,
+  21      loop(j,
+  22          put a(i, j):4:0 " ";
+  23          );
+  24      put ""/;
+  25  );
+  26  put /"Матрица пропускных способностей"/;
+  27  loop(i,
+  28      loop(j,
+  29          put d(i, j):4:0 " ";
+  30          );
+  31      put ""/;
+  32  );
+  33   
+  34  put /"Количество МБайт"/;
+  35  put z ""/;
+  36   
+  37  putclose probl;
+  38  Variables
+  39      x(i, j)
+  40      f;
+  41  Positive Variable x;
+  42  Equations
+  43      cost
+  44      source
+  45      legit(i, j)
+  46      balance(i)
+  47      sink;
+  48  *    noloop(i);
+  49  cost ..     f =e= sum((i, j), a(i, j)*x(i, j));
+  50  * целевая функция, умножаем поток на дугах на коэффициент стоимостей
+  51  source ..   z =e= sum((i, j)$i.first, x(i, j));
+  52  * из источника вышло z
+  53  sink ..   z =e= sum((i, j)$j.last, x(i, j));
+  54  * в сток зашло z
+  55  legit(i, j) ..    x(i, j) =l= d(i, j);
+  56  * допустимость, неотрицательность дуги уже проверена, так как разрешены только неотрицательные переменные
+  57  balance(i)$(not i.last and not i.first) ..  sum(j, x(j, i)) =e= sum(j, x(i, j) );
+  58  * баланс для остальных дуг
+  59  *noloop(i) ..   x(i, i) =e= 0;
+  60   
+  61  Model stream /all/;
+  62  Solve stream using LP minimizing f;
+  63   
+  64  file out /Result.txt/;
+  65  put out;
+  66  loop(i,
+  67          loop(j, put x.l(i,j):4:0 " ";
+  68          );
+  69           put ""/;
+  70      );
+  71  putclose out;
+
+
+COMPILATION TIME     =        0.000 SECONDS      3 MB  44.4.0 06604687 WEX-WEI
+GAMS 44.4.0  06604687 Sep 19, 2023          WEX-WEI x86 64bit/MS Windows - 10/07/23 10:22:53 Page 2
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Equation Listing    SOLVE stream Using LP From line 62
+
+
+---- cost  =E=  
+
+cost..  - 127*x(C1,C2) - 83*x(C1,C3) - 46*x(C1,C4) - 45*x(C1,C5) - 34*x(C1,C6) - 53*x(C1,C7) - 129*x(C2,C1) - 76*x(C2,C3) - 150*x(C2,C4) - 87*x(C2,C5) - 149*x(C2,C6) - 115*x(C2,C7) - 20*x(C3,C1) - 96*x(C3,C2) - 38*x(C3,C4) - 101*x(C3,C5) - 66*x(C3,C6) - 55*x(C3,C7) - 53*x(C4,C1) - 21*x(C4,C2) - 23*x(C4,C3) - 125*x(C4,C5) - 35*x(C4,C6) - 100*x(C4,C7) - 117*x(C5,C1) - 46*x(C5,C2) - 17*x(C5,C3) - 76*x(C5,C4) - 131*x(C5,C6) - 41*x(C5,C7) - 44*x(C6,C1) - 89*x(C6,C2) - 109*x(C6,C3) - 95*x(C6,C4) - 70*x(C6,C5) - 19*x(C6,C7) - 48*x(C7,C1) - 8*x(C7,C2) - 51*x(C7,C3) - 28*x(C7,C4) - 97*x(C7,C5) - 85*x(C7,C6) + f =E= 0 ; (LHS = 0)
+     
+
+---- source  =E=  
+
+source..  - x(C1,C1) - x(C1,C2) - x(C1,C3) - x(C1,C4) - x(C1,C5) - x(C1,C6) - x(C1,C7) =E= -51 ; (LHS = 0, INFES = 51 ****)
+     
+
+---- legit  =L=  
+
+legit(C1,C1)..  x(C1,C1) =L= 0 ; (LHS = 0)
+     
+legit(C1,C2)..  x(C1,C2) =L= 33 ; (LHS = 0)
+     
+legit(C1,C3)..  x(C1,C3) =L= 38 ; (LHS = 0)
+     
+REMAINING 46 ENTRIES SKIPPED
+
+
+---- balance  =E=  
+
+balance(C2)..  x(C1,C2) - x(C2,C1) - x(C2,C3) - x(C2,C4) - x(C2,C5) - x(C2,C6) - x(C2,C7) + x(C3,C2) + x(C4,C2) + x(C5,C2) + x(C6,C2) + x(C7,C2) =E= 0 ; (LHS = 0)
+     
+balance(C3)..  x(C1,C3) + x(C2,C3) - x(C3,C1) - x(C3,C2) - x(C3,C4) - x(C3,C5) - x(C3,C6) - x(C3,C7) + x(C4,C3) + x(C5,C3) + x(C6,C3) + x(C7,C3) =E= 0 ; (LHS = 0)
+     
+balance(C4)..  x(C1,C4) + x(C2,C4) + x(C3,C4) - x(C4,C1) - x(C4,C2) - x(C4,C3) - x(C4,C5) - x(C4,C6) - x(C4,C7) + x(C5,C4) + x(C6,C4) + x(C7,C4) =E= 0 ; (LHS = 0)
+     
+REMAINING 2 ENTRIES SKIPPED
+
+
+---- sink  =E=  
+
+sink..  - x(C1,C7) - x(C2,C7) - x(C3,C7) - x(C4,C7) - x(C5,C7) - x(C6,C7) - x(C7,C7) =E= -51 ; (LHS = 0, INFES = 51 ****)
+     
+GAMS 44.4.0  06604687 Sep 19, 2023          WEX-WEI x86 64bit/MS Windows - 10/07/23 10:22:53 Page 3
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Column Listing      SOLVE stream Using LP From line 62
+
+
+---- x  
+
+x(C1,C1)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+       -1       source
+        1       legit(C1,C1)
+
+x(C1,C2)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+     -127       cost
+       -1       source
+        1       legit(C1,C2)
+        1       balance(C2)
+
+x(C1,C3)
+                (.LO, .L, .UP, .M = 0, 0, +INF, 0)
+      -83       cost
+       -1       source
+        1       legit(C1,C3)
+        1       balance(C3)
+
+REMAINING 46 ENTRIES SKIPPED
+
+---- f  
+
+f
+                (.LO, .L, .UP, .M = -INF, 0, +INF, 0)
+        1       cost
+
+GAMS 44.4.0  06604687 Sep 19, 2023          WEX-WEI x86 64bit/MS Windows - 10/07/23 10:22:53 Page 4
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Range Statistics    SOLVE stream Using LP From line 62
+
+
+RANGE STATISTICS (ABSOLUTE NON-ZERO FINITE VALUES)
+
+RHS       [min, max] : [ 3.000E+00, 5.100E+01] - Zero values observed as well
+Bound     [min, max] : [        NA,        NA] - Zero values observed as well
+Matrix    [min, max] : [ 1.000E+00, 1.500E+02]
+
+GAMS 44.4.0  06604687 Sep 19, 2023          WEX-WEI x86 64bit/MS Windows - 10/07/23 10:22:53 Page 5
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Model Statistics    SOLVE stream Using LP From line 62
+
+
+MODEL STATISTICS
+
+BLOCKS OF EQUATIONS           5     SINGLE EQUATIONS           57
+BLOCKS OF VARIABLES           2     SINGLE VARIABLES           50
+NON ZERO ELEMENTS           166
+
+
+GENERATION TIME      =        0.000 SECONDS      5 MB  44.4.0 06604687 WEX-WEI
+GAMS 44.4.0  06604687 Sep 19, 2023          WEX-WEI x86 64bit/MS Windows - 10/07/23 10:22:53 Page 6
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+Solution Report     SOLVE stream Using LP From line 62
+
+
+               S O L V E      S U M M A R Y
+
+     MODEL   stream              OBJECTIVE  f
+     TYPE    LP                  DIRECTION  MINIMIZE
+     SOLVER  CPLEX               FROM LINE  62
+
+**** SOLVER STATUS     1 Normal Completion
+**** MODEL STATUS      1 Optimal
+**** OBJECTIVE VALUE             4373.0000
+
+ RESOURCE USAGE, LIMIT          0.000 10000000000.000
+ ITERATION COUNT, LIMIT         4    2147483647
+--- *** This solver runs with a demo license. No commercial use.
+--- GMO setup time: 0.00s
+--- GMO memory 0.51 Mb (peak 0.51 Mb)
+--- Dictionary memory 0.00 Mb
+--- Cplex 22.1.1.0 link memory 0.00 Mb (peak 0.01 Mb)
+--- Starting Cplex
+
+
+--- LP status (1): optimal.
+--- Cplex Time: 0.00sec (det. 0.06 ticks)
+
+
+Optimal solution found
+Objective:         4373.000000
+
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU cost                .              .              .             1.0000      
+---- EQU source           -51.0000       -51.0000       -51.0000       -46.0000      
+
+---- EQU legit  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+C1.C1        -INF             .              .           -46.0000      
+C1.C2        -INF             .            33.0000          .          
+C1.C3        -INF             .            38.0000          .          
+C1.C4        -INF           25.0000        32.0000          .          
+C1.C5        -INF           15.0000        15.0000       -14.0000      
+C1.C6        -INF            5.0000         5.0000       -47.0000      
+C1.C7        -INF            6.0000         6.0000       -47.0000      
+C2.C1        -INF             .            32.0000          .          
+C2.C2        -INF             .              .              .          
+C2.C3        -INF             .             3.0000          .          
+C2.C4        -INF             .            40.0000          .          
+C2.C5        -INF             .             5.0000          .          
+C2.C6        -INF             .            10.0000          .          
+C2.C7        -INF             .            27.0000          .          
+C3.C1        -INF             .            38.0000          .          
+C3.C2        -INF             .            10.0000          .          
+C3.C3        -INF             .              .              .          
+C3.C4        -INF             .            30.0000          .          
+C3.C5        -INF             .            31.0000          .          
+C3.C6        -INF             .            20.0000          .          
+C3.C7        -INF             .            19.0000          .          
+C4.C1        -INF             .            13.0000          .          
+C4.C2        -INF             .            13.0000          .          
+C4.C3        -INF             .             7.0000          .          
+C4.C4        -INF             .              .              .          
+C4.C5        -INF             .            20.0000          .          
+C4.C6        -INF           25.0000        39.0000          .          
+C4.C7        -INF             .            16.0000          .          
+C5.C1        -INF             .             7.0000          .          
+C5.C2        -INF             .            38.0000          .          
+C5.C3        -INF             .             4.0000          .          
+C5.C4        -INF             .            11.0000          .          
+C5.C5        -INF             .              .              .          
+C5.C6        -INF             .            14.0000          .          
+C5.C7        -INF           15.0000        25.0000          .          
+C6.C1        -INF             .             8.0000          .          
+C6.C2        -INF             .            10.0000          .          
+C6.C3        -INF             .            17.0000          .          
+C6.C4        -INF             .            17.0000          .          
+C6.C5        -INF             .            17.0000          .          
+C6.C6        -INF             .              .              .          
+C6.C7        -INF           30.0000        50.0000          .          
+C7.C1        -INF             .            19.0000          .          
+C7.C2        -INF             .            19.0000          .          
+C7.C3        -INF             .            39.0000          .          
+C7.C4        -INF             .            20.0000          .          
+C7.C5        -INF             .            46.0000          .          
+C7.C6        -INF             .             7.0000          .          
+C7.C7        -INF             .              .           -54.0000      
+
+---- EQU balance  
+
+          LOWER          LEVEL          UPPER         MARGINAL
+
+C2          .              .              .              .          
+C3          .              .              .              .          
+C4          .              .              .              .          
+C5          .              .              .            13.0000      
+C6          .              .              .            35.0000      
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- EQU sink             -51.0000       -51.0000       -51.0000       -54.0000      
+
+---- VAR x  
+
+             LOWER          LEVEL          UPPER         MARGINAL
+
+C1.C1          .              .            +INF             .          
+C1.C2          .              .            +INF           81.0000      
+C1.C3          .              .            +INF           37.0000      
+C1.C4          .            25.0000        +INF             .          
+C1.C5          .            15.0000        +INF             .          
+C1.C6          .             5.0000        +INF             .          
+C1.C7          .             6.0000        +INF             .          
+C2.C1          .              .            +INF          129.0000      
+C2.C2          .              .            +INF            EPS         
+C2.C3          .              .            +INF           76.0000      
+C2.C4          .              .            +INF          150.0000      
+C2.C5          .              .            +INF           74.0000      
+C2.C6          .              .            +INF          114.0000      
+C2.C7          .              .            +INF           61.0000      
+C3.C1          .              .            +INF           20.0000      
+C3.C2          .              .            +INF           96.0000      
+C3.C3          .              .            +INF            EPS         
+C3.C4          .              .            +INF           38.0000      
+C3.C5          .              .            +INF           88.0000      
+C3.C6          .              .            +INF           31.0000      
+C3.C7          .              .            +INF            1.0000      
+C4.C1          .              .            +INF           53.0000      
+C4.C2          .              .            +INF           21.0000      
+C4.C3          .              .            +INF           23.0000      
+C4.C4          .              .            +INF            EPS         
+C4.C5          .              .            +INF          112.0000      
+C4.C6          .            25.0000        +INF             .          
+C4.C7          .              .            +INF           46.0000      
+C5.C1          .              .            +INF          130.0000      
+C5.C2          .              .            +INF           59.0000      
+C5.C3          .              .            +INF           30.0000      
+C5.C4          .              .            +INF           89.0000      
+C5.C5          .              .            +INF            EPS         
+C5.C6          .              .            +INF          109.0000      
+C5.C7          .            15.0000        +INF             .          
+C6.C1          .              .            +INF           79.0000      
+C6.C2          .              .            +INF          124.0000      
+C6.C3          .              .            +INF          144.0000      
+C6.C4          .              .            +INF          130.0000      
+C6.C5          .              .            +INF           92.0000      
+C6.C6          .              .            +INF            EPS         
+C6.C7          .            30.0000        +INF             .          
+C7.C1          .              .            +INF           48.0000      
+C7.C2          .              .            +INF            8.0000      
+C7.C3          .              .            +INF           51.0000      
+C7.C4          .              .            +INF           28.0000      
+C7.C5          .              .            +INF           84.0000      
+C7.C6          .              .            +INF           50.0000      
+C7.C7          .              .            +INF             .          
+
+                           LOWER          LEVEL          UPPER         MARGINAL
+
+---- VAR f                 -INF         4373.0000        +INF             .          
+
+
+**** REPORT SUMMARY :        0     NONOPT
+                             0 INFEASIBLE
+                             0  UNBOUNDED
+GAMS 44.4.0  06604687 Sep 19, 2023          WEX-WEI x86 64bit/MS Windows - 10/07/23 10:22:53 Page 7
+G e n e r a l   A l g e b r a i c   M o d e l i n g   S y s t e m
+E x e c u t i o n
+
+
+**** REPORT FILE SUMMARY
+
+probl X:\repos\sippo\task_no2\Problem.txt
+out X:\repos\sippo\task_no2\Result.txt
+
+
+EXECUTION TIME       =        0.094 SECONDS      5 MB  44.4.0 06604687 WEX-WEI
+
+
+USER: GAMS Demo, for EULA and demo limitations see   G230706/0001CB-GEN
+      https://www.gams.com/latest/docs/UG%5FLicense.html         DC0000
+
+
+**** FILE SUMMARY
+
+Input      X:\repos\sippo\task_no2\task.gms
+Output     X:\repos\sippo\task_no2\task.lst
