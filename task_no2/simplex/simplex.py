@@ -1,4 +1,5 @@
 import copy
+
 from enum import Enum
 from fractions import Fraction
 from typing import Union
@@ -80,6 +81,7 @@ class Restriction:
 
 
 class Problem:
+    
     def __init__(self, fun: Function, restrictions: list[Restriction], soft_restrictions: list[Inequality]):
         self.variables = []
         self.function = fun
@@ -168,11 +170,11 @@ class Problem:
                 index += 1
 
             index += 1
-        for index in range(len(problem.restrictions)):
+        for index in range(len(self.restrictions)):
             if self.restrictions[index].inequal == Inequality.LESSEQ:
                 self.restrictions[index].inequal = Inequality.EQUAL
                 self.soft_restrictions.append(Inequality.GREATEREQ)
-                for jndex in range(len(problem.restrictions)):
+                for jndex in range(len(self.restrictions)):
                     if index != jndex:
                         self.restrictions[jndex].coefs.append(Fraction(0))
                     else:
@@ -184,7 +186,7 @@ class Problem:
             elif self.restrictions[index].inequal == Inequality.GREATEREQ:
                 self.restrictions[index].inequal = Inequality.EQUAL
                 self.soft_restrictions.append(Inequality.GREATEREQ)
-                for jndex in range(len(problem.restrictions)):
+                for jndex in range(len(self.restrictions)):
                     if index != jndex:
                         self.restrictions[jndex].coefs.append(Fraction(0))
                     else:
@@ -193,6 +195,55 @@ class Problem:
                 self.variables.append("x_%d" % count)
                 # TODO log for >=
                 count += 1
+
+    def make_function_nonbasis(self):
+        """
+        is used after artificial basis method
+        """
+        def get_basis_forced():
+            list_of_basis = []
+            restrictions = []
+            for i in range(len(self.function.array)):
+                if self.function.array[i] == 0:
+                    candidate = [i, -1]
+                    null = 0
+                    basis = 0
+                    index_of_basis = -1
+                    for j in range(len(self.restrictions)):
+                        null += self.restrictions[j].coefs[i] == 0
+                        basis += self.restrictions[j].coefs[i] == 1
+                        if self.restrictions[j].coefs[i] == 1:
+                            index_of_basis = j
+                    if basis == 1 and null == len(self.restrictions) - 1 and index_of_basis not in restrictions:
+                        candidate[-1] = index_of_basis
+                        restrictions.append(index_of_basis)
+                        # iтая переменная, index of basis - номер ограничения
+                        list_of_basis.append(candidate)
+            list_of_basis.sort(key=lambda x: x[1])
+            return list_of_basis
+
+        basis = get_basis_forced()
+        basis.sort(key=lambda x:x[0])
+        to_delete_restrictions = list(filter(lambda x: x not in [y[1] for y in basis], range(len(self.restrictions))))
+        to_delete_variables = list(filter(lambda x: x not in [y[0] for y in basis], range(len(self.variables))))
+
+        # for var in range(len(self.function.array)):
+        for restriction in to_delete_restrictions:
+            index = None
+            for j in range(len(self.variables)):
+                if self.restrictions[restriction].coefs[j] != 0 and j in to_delete_variables:
+                    index = j
+                    to_delete_variables.remove(j)
+                    break
+            
+
+            coef = self.function.array[index]
+            for elem in range(len(self.function.array)):
+                self.function.array[elem]-=coef/self.restrictions[restriction].coefs[index]* self.restrictions[restriction].coefs[elem]
+                ## - or + ??
+                ## it seems to be right
+            self.function.c+=coef/self.restrictions[restriction].coefs[index]*self.restrictions[restriction].b
+
 
     def __str__(self):
         s = "f = "
@@ -248,7 +299,7 @@ class Problem:
             # s += ' + '.join(["(" + str(self.restrictions[i].coefs[j]) + ")*" + self.variables[j]
             #                  if self.restrictions[i].coefs[j] !=0 else
             #                  for j in range(len(self.restrictions[i].coefs))]) + " " + str(
-            s += str(self.restrictions[i].inequal) + "\t"
+            s += str(self.restrictions[i].inequal) + " "
             s += str(self.restrictions[i].b) + "\n"
 
         for i in range(len(self.soft_restrictions)):
@@ -278,8 +329,8 @@ class Problem:
                     # iтая переменная, index oj basis - номер ограничения
                     candidates.append(candidate)
                     list_of_basis.append(index_of_basis)
-        list_of_basis.sort()
-        if len(list_of_basis) != len(problem.restrictions):
+        list_of_basis = sorted(list(set(list_of_basis)))
+        if len(list_of_basis) != len(self.restrictions):
             return False
         return True
 
@@ -294,6 +345,7 @@ class Problem:
 
         # vector_of_nonbasis = function.array
         list_of_basis = []
+        restrictions = []
         for i in range(len(self.function.array)):
             if self.function.array[i] == 0:
                 candidate = [i, -1]
@@ -305,13 +357,14 @@ class Problem:
                     basis += self.restrictions[j].coefs[i] == 1
                     if self.restrictions[j].coefs[i] == 1:
                         index_of_basis = j
-                if basis == 1 and null == len(self.restrictions) - 1:
+                if basis == 1 and null == len(self.restrictions) - 1 and index_of_basis not in restrictions:
                     candidate[-1] = index_of_basis
-                    # iтая переменная, index oj basis - номер ограничения
+                    restrictions.append(index_of_basis)
+                    # iтая переменная, index of basis - номер ограничения
                     list_of_basis.append(candidate)
         list_of_basis.sort(key=lambda x: x[1])
-        if len(list_of_basis) != len(problem.restrictions):
-            return None
+        if len(list_of_basis) != len(self.restrictions):
+            return []
         return list_of_basis
 
     def check_vector(self, vector: list[Fraction]):
@@ -616,13 +669,19 @@ class SimplexTable:
             return None
 
     @staticmethod
+
     def problem_from_table(table: list[list[Union[Fraction, int, str]]], full_table=True):
+        """
+        works for primarily feasible problems
+        """
+        # лишняя строчка
         if full_table:
             function = Function(table[1][1:] + ['max'])
             soft_restrictions = [
-                Inequality.NONE for _ in range(len(table[0][2:]))]
+                # TODO not only for greatereq
+                Inequality.GREATEREQ for _ in range(len(table[0][2:]))]
             restrictions = []
-            for i in range(1, len(table)):
+            for i in range(2, len(table)): #1st row is for function
                 restrictions.append(Restriction(
                     table[i][2:] + ['=', table[i][1]]))
             return Problem(function, restrictions, soft_restrictions)
@@ -630,7 +689,8 @@ class SimplexTable:
             function = Function(
                 table[1][1:] + [0 for j in range(1, len(table))] + ['max'])
             soft_restrictions = [
-                Inequality.NONE for _ in range(len(function.array))]
+                # TODO not only for greatereq
+                Inequality.GREATEREQ for _ in range(len(function.array))]
             restrictions = []
             for i in range(1, len(table)):
                 restrictions.append(
@@ -643,30 +703,36 @@ class SimplexTable:
             return problem
         if not problem.check_canon():
             raise Exception
+        
+        auxillary_problem = copy.deepcopy(problem)
+
         list_of_basis = []
         vector_of_nonbasis = list(
-            map(lambda x: x != 0, problem.function.array))
-        for i in range(len(vector_of_nonbasis)):
-            if not vector_of_nonbasis[i]:
-                column = [problem.restrictions[j].coefs[i]
-                          for j in range(len(problem.restrictions))]
-                if column.count(1) == 1 and column.count(0) == len(problem.restrictions) - 1:
-                    if len(list(filter(lambda x: x[0] == (column.index(1), list_of_basis)))) == 0:
-                        # номер ограничения номер переменной
-                        list_of_basis.append((column.index(1), i))
-
-        list_of_restrictions_without_basis = list(
-            filter(lambda x: x not in [y[1] for y in list_of_basis], range(len(problem.restrictions))))
-        auxillary_problem = copy.deepcopy(problem)
-        auxillary_problem.variables += ["t_%d" % i for i in range(
-            1, len(list_of_restrictions_without_basis) + 1)]
-        auxillary_basis = [problem.variables[i[1]] for i in list_of_basis] + ["t_%d" % i for i in range(1,
-                                                                                                        len(list_of_restrictions_without_basis) + 1)]
-        for i in range(len(problem.restrictions)):
+            map(lambda x: x != 0, auxillary_problem.function.array))
+        
+        for i in range(len(auxillary_problem.restrictions)):
             if auxillary_problem.restrictions[i].b < 0:
                 auxillary_problem.restrictions[i].b *= -1
                 auxillary_problem.restrictions[i].coefs = [
                     -i for i in auxillary_problem.restrictions[i].coefs]
+
+        for i in range(len(vector_of_nonbasis)):
+            if not vector_of_nonbasis[i]:
+                column = [auxillary_problem.restrictions[j].coefs[i]
+                          for j in range(len(auxillary_problem.restrictions))]
+                if column.count(1) == 1 and column.count(0) == len(auxillary_problem.restrictions) - 1:
+                    if len(list(filter(lambda x: x[0] == (column.index(1)), list_of_basis))) == 0:
+                        # номер ограничения номер переменной
+                        list_of_basis.append((column.index(1), i))
+
+        list_of_restrictions_without_basis = list(
+            filter(lambda x: x not in [y[0] for y in list_of_basis], range(len(auxillary_problem.restrictions))))
+
+        auxillary_problem.variables += ["t_%d" % i for i in range(
+            1, len(list_of_restrictions_without_basis) + 1)]
+        auxillary_basis = [auxillary_problem.variables[i[1]] for i in list_of_basis] + ["t_%d" % i for i in range(1,
+                                                                                                        len(list_of_restrictions_without_basis) + 1)]
+        
         auxillary_problem.soft_restrictions += [Inequality.GREATEREQ for i in
                                                 range(len(list_of_restrictions_without_basis))]
         num_of_t = 0
@@ -679,12 +745,17 @@ class SimplexTable:
                     len(list_of_restrictions_without_basis))]
                 num_of_t += 1
         auxillary_problem.function.c = sum(
-            [-problem.restrictions[i].b for i in range(len(problem.restrictions))])
-        auxillary_problem.function.array = [
-            sum([problem.restrictions[i].coefs[j] for i in
-                 range(len(auxillary_problem.restrictions))]) if auxillary_problem.variables[
-                j] not in auxillary_basis else 0
-            for j in range(len(auxillary_problem.variables))]
+            [-problem.restrictions[i].b for i in list_of_restrictions_without_basis])
+        # auxillary_problem.function.array = [
+        #     sum([problem.restrictions[i].coefs[j] for i in
+        #          range(len(auxillary_problem.restrictions))]) if auxillary_problem.variables[
+        #         j] not in auxillary_basis else 0
+        #     for j in range(len(auxillary_problem.variables))]
+        auxillary_problem.function.array = [sum([problem.restrictions[j].coefs[i]for j in
+                                                 list_of_restrictions_without_basis])
+                                                   for i in range(len(problem.variables))]
+        auxillary_problem.function.array+=[Fraction(0) for i in list_of_restrictions_without_basis]
+        
         print("Вспомогательная задача:")
         print(auxillary_problem)
         table = SimplexTable.simplex_method(
@@ -708,7 +779,7 @@ class SimplexTable:
                     bias += 1
             if full_table:
                 table[1] = ["f"] + [problem.function.c] + \
-                    [problem.function.array]
+                problem.function.array
             else:
                 # table[1] = ["f"] +
                 pass
@@ -718,103 +789,104 @@ class SimplexTable:
 
 
 if __name__ == '__main__':
-    # with open("input.txt") as file:
-    #     problem = Problem(*read(file))
-    #     assert not problem.check_canon()
-    #     print(problem)
-    #     problem.make_canon(True)
-    #     assert problem.check_canon()
-    #     print(problem)
-    #     assert not problem.check_reduced()
-    # with open("input1.txt") as file:
-    #     problem = Problem(*read(file))
-    #     assert not problem.check_canon()
-    #     print(problem)
-    #     problem.make_canon(False)
-    #     assert problem.check_canon()
-    #     print(problem)
-    #     assert problem.check_reduced()
-    #     print("Базис: %s" % (problem.get_basis()))
-    #     x, y = SimplexTable.simplex_method(problem, "f")
-    #     assert x == [2, 2, 0, 0, 4]
-    #     assert y == 12
-    # with open("input2.txt") as file:
-    #     problem = Problem(*read(file))
-    #     assert not problem.check_canon()
-    #     problem.make_canon(False)
-    #     print(problem)
-    #     assert problem.check_special()
-    #     x, y = SimplexTable.simplex_method(problem, "f", False)  # == [3, 2, 0, 0, 4, 2], 17
-    #     # assert SimplexTable.simplex_method(problem, False) == [3, 2, 0, 0, 4, 2], 17
-    #
-    #     assert x == [3, 2, 0, 0, 4, 2]
-    #     assert y == 17
-    # with open("input3.txt") as file:
-    #     problem = Problem(*read(file))
-    #     print(problem)
-    #     assert not problem.check_special()
-    #     IIphase = SimplexTable.artificial_basis(problem, False)
-    #     print(IIphase)
-    #     # assert IIphase.check_special()
-    # with open("max.txt") as file:
-    #     problem = Problem(*read(file))
-    #     IIphase = SimplexTable.artificial_basis(problem, False)
-    #     print(problem.get_dual())
-    # with open("max1.txt") as file:
-    #     problem = Problem(*read(file))
-    #     vectors = [[0, -1, 0, 1, 0],
-    #                [1, 0, 1, 5, 0],
-    #                [0, 0, 1, 1, 1],
-    #                [0, 1, 1, 2, 0]]
-    #     for i in vectors:
-    #         print(*i)
-    #         if problem.check_vector(i):
-    #             print("f(%s) = %s" % (i, problem.function.value(i)))
-    #     print(problem.get_dual())
-    # with open("input4.txt") as file:
-    #     problem = Problem(*read(file))
-    #     assert not problem.check_canon()
-    #     problem.make_canon(False)
-    #     print(problem)
-    #     assert problem.check_special()
-    #     x, y = SimplexTable.simplex_method(problem, "f", False)
-    #     print(*x)
-    #     print(y)
-    # with open("input5.txt") as file:
-    #     problem = Problem(*read(file))
-    #     assert problem.check_canon()
-    #     print(problem)
-    #     assert problem.is_dual_feasible()
-    #     x, y = SimplexTable.simplex_method(problem, "f", False, dual=True)
-    #     assert x == [2, 1, 6, 1, 0, 0, 0, 0]
-    #     assert y == 8
-    # with open("input6.txt") as file:
-    #     problem = Problem(*read(file))
-    #     assert problem.check_canon()
-    #     print(problem)
-    #     assert problem.is_primarly_feasible()
-    #     x, y = SimplexTable.simplex_method(problem, "f", False)
-    # with open("input7.txt") as file:
-    #     problem = Problem(*read(file))
-    #     problem.make_canon(False)
-    #     x, y = SimplexTable.simplex_method(problem, "f", False)
-    # with open("input8.txt") as file:
-    #     problem = Problem(*read(file))
-    #
-    #     x, y = SimplexTable.simplex_method(problem, "f", False, dual=True)
-    # with open("input9.txt") as file:
-    #     problem = Problem(*read(file))
-    #     problem.make_canon(False)
-    #     x, y = SimplexTable.simplex_method(problem, "f", False)
-    # with open("input10.txt") as file:
-    #     problem = Problem(*read(file))
-    #     problem.make_canon(False)
-    #     SimplexTable.simplex_method(problem, "f", False)
-    # with open("input11.txt") as file:
-    #     problem = Problem(*read(file))
-    #     problem.make_canon(False)
-    #     SimplexTable.simplex_method(problem, "f", False)
+    with open("input.txt") as file:
+        problem = Problem(*read(file))
+        assert not problem.check_canon()
+        print(problem)
+        problem.make_canon(True)
+        assert problem.check_canon()
+        print(problem)
+        assert not problem.check_reduced()
+    with open("input1.txt") as file:
+        problem = Problem(*read(file))
+        assert not problem.check_canon()
+        print(problem)
+        problem.make_canon(False)
+        assert problem.check_canon()
+        print(problem)
+        assert problem.check_reduced()
+        print("Базис: %s" % (problem.get_basis()))
+        x, y = SimplexTable.simplex_method(problem, "f")
+        assert x == [2, 2, 0, 0, 4]
+        assert y == 12
+    with open("input2.txt") as file:
+        problem = Problem(*read(file))
+        assert not problem.check_canon()
+        problem.make_canon(False)
+        print(problem)
+        assert problem.check_special()
+        x, y = SimplexTable.simplex_method(problem, "f", False)  # == [3, 2, 0, 0, 4, 2], 17
+        # assert SimplexTable.simplex_method(problem, False) == [3, 2, 0, 0, 4, 2], 17
+    
+        assert x == [3, 2, 0, 0, 4, 2]
+        assert y == 17
+    with open("input3.txt") as file:
+        problem = Problem(*read(file))
+        print(problem)
+        assert not problem.check_special()
+        IIphase = SimplexTable.artificial_basis(problem, False)
+        print(IIphase)
+        # assert IIphase.check_special()
+    with open("max.txt") as file:
+        problem = Problem(*read(file))
+        IIphase = SimplexTable.artificial_basis(problem, False)
+        print(problem.get_dual())
+    with open("max1.txt") as file:
+        problem = Problem(*read(file))
+        vectors = [[0, -1, 0, 1, 0],
+                   [1, 0, 1, 5, 0],
+                   [0, 0, 1, 1, 1],
+                   [0, 1, 1, 2, 0]]
+        for i in vectors:
+            print(*i)
+            if problem.check_vector(i):
+                print("f(%s) = %s" % (i, problem.function.value(i)))
+        print(problem.get_dual())
+    with open("input4.txt") as file:
+        problem = Problem(*read(file))
+        assert not problem.check_canon()
+        problem.make_canon(False)
+        print(problem)
+        assert problem.check_special()
+        x, y = SimplexTable.simplex_method(problem, "f", False)
+        print(*x)
+        print(y)
+    with open("input5.txt") as file:
+        problem = Problem(*read(file))
+        assert problem.check_canon()
+        print(problem)
+        assert problem.is_dual_feasible()
+        x, y = SimplexTable.simplex_method(problem, "f", False, dual=True)
+        assert x == [2, 1, 6, 1, 0, 0, 0, 0]
+        assert y == 8
+    with open("input6.txt") as file:
+        problem = Problem(*read(file))
+        assert problem.check_canon()
+        print(problem)
+        assert problem.is_primarly_feasible()
+        x, y = SimplexTable.simplex_method(problem, "f", False)
+    with open("input7.txt") as file:
+        problem = Problem(*read(file))
+        problem.make_canon(False)
+        x, y = SimplexTable.simplex_method(problem, "f", False)
+    with open("input8.txt") as file:
+        problem = Problem(*read(file))
+    
+        x, y = SimplexTable.simplex_method(problem, "f", False, dual=True)
+    with open("input9.txt") as file:
+        problem = Problem(*read(file))
+        problem.make_canon(False)
+        x, y = SimplexTable.simplex_method(problem, "f", False)
+    with open("input10.txt") as file:
+        problem = Problem(*read(file))
+        problem.make_canon(False)
+        SimplexTable.simplex_method(problem, "f", False)
+    with open("input11.txt") as file:
+        problem = Problem(*read(file))
+        problem.make_canon(False)
+        SimplexTable.simplex_method(problem, "f", False)
     with open("input12.txt") as file:
         problem = Problem(*read(file))
 
         x, y = SimplexTable.simplex_method(problem, "f", False, dual=True)
+    pass
