@@ -23,7 +23,12 @@
 % \theoremstyle{remark}
 % \newtheorem*{remark}{Замечание}
 
-\renewcommand{\theenumiii}{\Asbuk{enumiii}}
+% \renewcommand{\theenumii}{\arabic{enumi}.(\alph{enumii})}
+% \renewcommand{\theenumiii}{\arabic{enumi}.(\alph{enumii}).\Asbuk{enumiii}}
+
+\renewcommand{\labelenumii}{\arabic{enumi}.\arabic{enumii}}
+\renewcommand{\labelenumiii}{\arabic{enumi}.\arabic{enumii}.\Asbuk{enumiii}}
+% \renewcommand{\labelenumiv}{\arabic{enumi}.\arabic{enumii}.\arabic{enumiii}.\arabic{enumiv}}
 
 \setlength{\topmargin}{-0.5in}
 \setlength{\oddsidemargin}{-0.5in}
